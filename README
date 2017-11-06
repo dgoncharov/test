@@ -1,0 +1,37 @@
+This header is a test tool. This header provides the following facilities.
+
+ASSERT is an variadic macro that prints an error message to stderr and
+increments the value of global variable status if the first argument is
+false. The error message contains the filename and the line number of the
+failed macro invocation followed by the failed expression, followed by the
+names and values of the arguments of ASSERT starting from the second
+argument.
+
+status is a global variable that captures the number of times ASSERT failed.
+status can reach the max value of 64.
+
+PRINT is a variadic macro that prints the name and value of its arguments
+starting from the second.
+
+This header is supposed to be copied to your project and included in a test
+program.
+
+#include "test.h"
+int main(int argc, char* argv[])
+{
+    int x = 1, y = 2;
+    ASSERT(x == y, x, y);
+    return status;
+}
+Running this program produces
+t.cpp:5: assertion `x == y' failed x = `1', y = `2'
+
+To invoke ASSERT from multiple threads status can be made an atomic int in
+the working copy of test.h.
+
+Copyright (c) 2017, Dmitry Goncharov
+All rights reserved.
+
+Distributes under the bsd license.
+
+
