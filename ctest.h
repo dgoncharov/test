@@ -1,52 +1,53 @@
 #ifndef CTEST_INCLUDE_GUARD
 #define CTEST_INCLUDE_GUARD
 
-// This header is a test tool. This header provides the following facilities.
-//
-// ASSERT(<expression>[, const char* format[, <parameter>...]]);
-// ASSERT is an variadic macro that prints an error message to stderr and
-// increments the value of global variable status if the first argument is
-// false. The error message contains the filename and the line number of the
-// failed macro invocation followed by the failed expression.
-// ASSERT takes optional printf format specification and format parameters
-// after the expression.
-// If more than one paremeter is passed to ASSERT the second argument has to
-// be a printf format specification. If first argument evaluates to false these
-// optional parameters starting from the third are printed to stderr according
-// to the format specification.
-// This copy of ctest.h takes up to 5 optional parameters after the format
-// specification.  This number can be increased in the working copy of ctest.h
-// by modifying DISPATCH.
-//
-// status is a global variable that captures the number of times ASSERT
-// failed.
-// status can reach the max value of 64.
-//
-// This header is supposed to be copied to your project and included in a test
-// program.
-//
-// #include "ctest.h"
-//
-// int main(int argc, char* argv[])
-// {
-//     int x = 1, y = 2;
-//     ASSERT(x == y);
-//     ASSERT(x == y, "x is not equal to y\n");
-//     ASSERT(x == y, "%s: x=%d, y=%d\n", argv[0], x, y);
-//     ASSERT(x == y, "x=%d, y=%d %d %d %d\n",  x, y, 1, 2, 3);
-//     ASSERT(x == y, "");
-//     return status;
-// }
-//
-// $ ./test ; echo $?
-// ctest.t.c:6: assertion `x == y' failed
-// ctest.t.c:7: assertion `x == y' failed x is not equal to y
-// ctest.t.c:8: assertion `x == y' failed ./tc: x=1, y=2
-// ctest.t.c:9: assertion `x == y' failed x=1, y=2 1 2 3
-// ctest.t.c:10: assertion `x == y' failed 5
-//
-// To invoke ASSERT from multiple threads status can be made an atomic int in
-// the working copy of ctest.h.
+/*
+ctest.h is a test tool. ctest.h provides the following facilities.
+
+ASSERT(<expression>[, const char* format[, <parameter>...]]);
+ASSERT is a variadic macro that prints an error message to stderr and
+increments the value of global variable test_status if the first argument is
+false. The error message contains the filename and the line number of the
+failed macro invocation followed by the failed expression.
+ASSERT takes optional printf format specification and format parameters
+after the expression.
+If more than one paremeter is passed to ASSERT the second argument has to
+be a printf format specification. If first argument evaluates to false these
+optional parameters starting from the third are printed to stderr according
+to the format specification.
+This copy of ctest.h takes up to 5 optional parameters after the format
+specification.  This number can be increased in the working copy of ctest.h
+by modifying DISPATCH.
+
+test_status is a global variable that captures the number of times ASSERT
+failed, but no greater than 64. test_status is restricted to 64, because
+test_status can be used as the exit code.
+
+ctest.h is supposed to be copied to your project and included in a test
+program.
+
+#include "ctest.h"
+
+int main(int argc, char* argv[])
+{
+    int x = 1, y = 2;
+    ASSERT(x == y);
+    ASSERT(x == y, "x is not equal to y\n");
+    ASSERT(x == y, "%s: x=%d, y=%d\n", argv[0], x, y);
+    ASSERT(x == y, "x=%d, y=%d %d %d %d\n",  x, y, 1, 2, 3);
+    ASSERT(x == y, "");
+    return test_status;
+}
+
+$ ./test ; echo $?
+ctest.t.c:6: assertion `x == y' failed
+ctest.t.c:7: assertion `x == y' failed x is not equal to y
+ctest.t.c:8: assertion `x == y' failed ./tc: x=1, y=2
+ctest.t.c:9: assertion `x == y' failed x=1, y=2 1 2 3
+ctest.t.c:10: assertion `x == y' failed 5
+
+To invoke ASSERT from multiple threads test_status can be made an atomic int in
+the working copy of ctest.h.  */
 
 #include <stdio.h>
 #include <errno.h>
@@ -70,22 +71,24 @@ static int vprint(const char* fmt, ...)
 #define HEAD(x, ...) (x)
 #define SHEAD(x, ...) #x
 #define HEADLESS(x, ...) __VA_ARGS__
-// CALL is needed to have HEADLESS expanded before Px is expanded.
+/* CALL is needed to have HEADLESS expanded before Px is expanded.  */
 #define CALL(Px, ...) Px(__VA_ARGS__)
 #define P0() fprintf(stderr, "\n")
 #define P1(...) vprint(__VA_ARGS__)
-#define DISPATCH(_1, _2, _3, _4, _5, _6, _7, Px, ...) Px
-#define PRINT(...) CALL(DISPATCH(__VA_ARGS__, P1, P1, P1, P1, P1, P1, P0),\
+#define DISPATCH(_1, _2, _3, _4, _5, _6, _7, _8, Px, ...) Px
+#define PRINT(...) CALL(DISPATCH(__VA_ARGS__, P1, P1, P1, P1, P1, P1, P1, P0),\
                                                         HEADLESS(__VA_ARGS__))
 
-static int status = 0;
-// We don't want status to be greater than 64, because status can be used as
-// the exit code.
+static int test_status = 0;
+static int test_npassed = 0;
+static int test_nfailed = 0;
 #define ASSERT(...)\
 do {\
+    ++test_npassed;\
     if (!(HEAD(__VA_ARGS__))) {\
-        if (status < 64)\
-            ++status;\
+        ++test_nfailed;\
+        if (test_status < 64)\
+            ++test_status;\
         fprintf(stderr, "%s:%d: assertion `%s' failed ",\
                                     __FILE__, __LINE__, SHEAD(__VA_ARGS__));\
         PRINT(__VA_ARGS__);\
@@ -94,7 +97,7 @@ do {\
 #endif
 
 /*
-Copyright (c) 2019, Dmitry Goncharov
+Copyright (c) 2019-2023, Dmitry Goncharov
 All rights reserved.
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
